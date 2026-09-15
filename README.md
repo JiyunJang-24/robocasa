@@ -1,3 +1,23 @@
+## This fork: cross-embodiment dataset generation & evaluation
+
+This fork of [robocasa/robocasa](https://github.com/robocasa/robocasa) adds a
+pipeline for replaying one robot's recorded demonstration across several other
+robot embodiments (same task, same trajectory, different arm), plus the
+evaluation setups for the resulting checkpoints. **Read [`CLAUDE.md`](CLAUDE.md)
+first** — it covers the two dataset generators, the two eval pathways (plain
+RoboCasa vs. BARX-style), the `third_party/` submodules this needs
+(`barx`, a modified `robosuite`), and the gotchas that don't show up until you
+decode a rendered frame.
+
+```bash
+git clone --recurse-submodules https://github.com/JiyunJang-24/robocasa.git
+```
+
+Everything below this point is upstream RoboCasa's own installation guide and
+project description.
+
+---
+
 <h1 align="center">RoboCasa</h1>
 <!-- ![alt text](https://github.com/UT-Austin-RPL/maple/blob/web/src/overview.png) -->
 <img src="docs/images/readme.webp" width="100%" />

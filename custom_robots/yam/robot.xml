@@ -1,0 +1,90 @@
+<mujoco model="yam_robosuite">
+  <compiler angle="radian" />
+  <option integrator="implicitfast" />
+  <asset>
+    <material name="black" rgba="0.25 0.25 0.25 1" />
+    <material name="white" rgba="0.9 0.9 0.9 1" />
+    <mesh file="assets/model2.stl" name="model2" />
+    <mesh file="assets/model2__2.stl" name="model2__2" />
+    <mesh file="assets/model2__3.stl" name="model2__3" />
+    <mesh file="assets/model2__4.stl" name="model2__4" />
+    <mesh file="assets/model2__5.stl" name="model2__5" />
+    <mesh file="assets/model2__6.stl" name="model2__6" />
+    <mesh file="assets/model2__7.stl" name="model2__7" />
+    <mesh file="assets/model2__8.stl" name="model2__8" />
+    <mesh file="assets/model2__9.stl" name="model2__9" />
+    <mesh file="assets/model2__10.stl" name="model2__10" />
+    <mesh file="assets/model2__11.stl" name="model2__11" />
+    <mesh file="assets/model2__12.stl" name="model2__12" />
+    <mesh file="assets/model2__13.stl" name="model2__13" />
+    <mesh file="assets/model2__14.stl" name="model2__14" />
+    <mesh file="assets/model2__15.stl" name="model2__15" />
+    <mesh file="assets/model2__16.stl" name="model2__16" />
+    <mesh file="assets/model2__17.stl" name="model2__17" />
+  </asset>
+  <worldbody>
+    <body name="base">
+      <geom pos="0 0 -0.0006" quat="1 0 0 1" mesh="model2" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+      <geom size="0.033 0.01" pos="0.0 0.0 0.026" quat="1 0 0 0" group="0" type="capsule" />
+      <body name="link_1" pos="0 0 0.0631" quat="1 0 0 1">
+        <inertial pos="-0.00192861 -0.00795735 0.0208176" quat="0.297851 0.642634 0.360045 0.607185" mass="0.12415" diaginertia="0.000180751 0.000145532 5.89179e-05" />
+        <joint name="joint1" range="-2.61799 3.05433" frictionloss="0.1" axis="0 0 1" armature="0.032" />
+        <geom pos="5.26159e-07 2.34355e-07 -0.0632" quat="1 0 0 0" mesh="model2__2" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+        <body name="link_2" pos="2.5e-05 -0.02 0.0409" quat="1 1 1 1" gravcomp="1">
+          <inertial pos="0.132008 2.10599e-06 0.000293073" quat="1 1 1 1" mass="1.24434" diaginertia="0.0121902 0.0121318 0.000683304" />
+          <joint name="joint2" range="0 3.66519" frictionloss="0.1" axis="0 0 1" armature="0.032" />
+          <geom pos="0.0199992 -0.1041 -2.44738e-05" quat="1 -1 -1 -1" mesh="model2__3" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+          <geom pos="0.0199992 -0.1041 -2.44738e-05" quat="1 -1 -1 -1" mesh="model2__4" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+          <geom pos="0.0199992 -0.1041 -2.44738e-05" quat="1 -1 -1 -1" mesh="model2__5" material="white" type="mesh" contype="0" conaffinity="0" density="0" group="1" />
+          <geom size="0.032 0.11" pos="0.13 0 0" quat="1 0 1 0" group="0" type="capsule" />
+          <geom size="0.033 0.02" pos="0 0.0 0" quat="1 0 0 0" group="0" type="capsule" />
+          <geom size="0.033 0.025" pos="0.265 0 0" quat="1 0 0 0" group="0" type="capsule" />
+          <body name="link_3" pos="0.264 0 0" quat="0 1 0 0" gravcomp="1">
+            <inertial pos="-0.121816 -0.054846 -0.000111108" quat="1 1 1 1" mass="0.853698" diaginertia="0.00699732 0.00696112 0.000788244" />
+            <joint name="joint3" range="0 3.66519" frictionloss="0.1" axis="0 0 1" armature="0.032" />
+            <geom pos="-0.244001 0.104101 2.44738e-05" quat="1 1 1 -1" mesh="model2__6" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+            <geom pos="-0.244001 0.104101 2.44738e-05" quat="1 1 1 -1" mesh="model2__7" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+            <geom pos="-0.244001 0.104101 2.44738e-05" quat="1 1 1 -1" mesh="model2__8" material="white" type="mesh" contype="0" conaffinity="0" density="0" group="1" />
+            <geom pos="-0.244001 0.104101 2.44738e-05" quat="1 1 1 -1" mesh="model2__9" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+            <geom size="0.034 0.12" pos="-0.14 -0.06 0.0" quat="1 0 1 0" group="0" type="capsule" />
+            <geom size="0.034 0.015" pos="-0.24 -0.06 0.0" quat="1 0 0 0" group="0" type="capsule" />
+            <body name="link_4" pos="-0.245 -0.06 0" quat="1 0 0 0" gravcomp="1">
+              <inertial pos="-0.0769778 -0.0527104 0.000154878" quat="0.667 0.667 -0.236 -0.236" mass="0.463511" diaginertia="0.000791532 0.000744733 0.000282116" />
+              <joint name="joint4" range="-1.5708 1.5708" frictionloss="0.1" axis="0 0 1" armature="0.0018" />
+              <geom pos="0.00100023 0.164101 2.44738e-05" quat="1 1 1 -1" mesh="model2__10" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+              <geom size="0.03 0.015" pos="-0.073 -0.06 0.0" quat="1 1 0 0" group="0" type="capsule" />
+              <body name="link_5" pos="-0.074 -0.0395 2.5e-05" quat="1 -1 1 1" gravcomp="1">
+                <inertial pos="3.64861e-05 0.00025665 0.0353526" quat="1 0 0 0" mass="0.350962" diaginertia="0.000197802 0.0001775 0.000147402" />
+                <joint name="joint5" range="-1.5708 1.5708" frictionloss="0.1" axis="0 0 1" armature="0.0018" />
+                <geom pos="0 -0.0749971 0.203601" quat="1.32679e-06 1 0 0" mesh="model2__11" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+                <geom size="0.030 0.015" pos="0 0.025 0.0395" quat="1 1 0 0" group="0" type="capsule" />
+                <body name="link_6" pos="0 0.0353 0.0395" quat="1 -1 0 0" gravcomp="1">
+                  <inertial pos="-0.000217767 7.37059e-05 0.0270545" quat="1 1 0 0" mass="0.367476" diaginertia="0.000265958 0.000242686 0.000227409" />
+                  <joint name="joint6" range="-2.0944 2.0944" frictionloss="0.1" axis="0 0 1" armature="0.0018" />
+                  <geom pos="0 -0.164101 -0.110597" quat="1 -1 0 0" mesh="model2__12" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+                  <geom pos="0 -0.164101 -0.110597" quat="1 -1 0 0" mesh="model2__13" type="mesh" contype="0" conaffinity="0" density="0" group="1" material="black" />
+                  <geom size="0.01 0.035" pos="0 0.039 0.052" quat="1 0 1 0" group="0" type="capsule" />
+                  <geom size="0.030 0.005" pos="0 0.0 0.03" quat="1 0 0 1" group="0" type="capsule" />
+                  <geom size="0.01 0.035" pos="0 -0.039 0.052" quat="1 0 1 0" group="0" type="capsule" />
+                  <site name="tcp_site" pos="0 0 0" quat="1 0 0 -1" size="0.005" rgba="1 0 0 1" group="4" />
+                  <site name="grasp_site" pos="0 0 0.1347" quat="1 0 0 -1" size="0.005" rgba="0 1 0 1" group="4" />
+                  <body name="right_hand" pos="0 0 0.087" quat="1 0 0 -1">
+                    <site name="right_center" pos="0 0 0" size="0.01" rgba="1 0.3 0.3 0" group="1" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor ctrllimited="true" ctrlrange="-28.0 28.0" joint="joint1" name="torq_joint1" />
+    <motor ctrllimited="true" ctrlrange="-28.0 28.0" joint="joint2" name="torq_joint2" />
+    <motor ctrllimited="true" ctrlrange="-28.0 28.0" joint="joint3" name="torq_joint3" />
+    <motor ctrllimited="true" ctrlrange="-10.0 10.0" joint="joint4" name="torq_joint4" />
+    <motor ctrllimited="true" ctrlrange="-10.0 10.0" joint="joint5" name="torq_joint5" />
+    <motor ctrllimited="true" ctrlrange="-10.0 10.0" joint="joint6" name="torq_joint6" />
+  </actuator>
+</mujoco>

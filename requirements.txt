@@ -1,1 +1,4 @@
+-e third_party/robosuite
+-e mimicgen
+-e robomimic
 -e .

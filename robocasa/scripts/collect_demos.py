@@ -31,11 +31,6 @@ import robocasa
 import robocasa.macros as macros
 from robocasa.models.fixtures import FixtureType
 from robocasa.utils.robomimic.robomimic_dataset_utils import convert_to_robomimic_format
-from robocasa.wrappers.enclosing_wall_render_wrapper import (
-    EnclosingWallRenderWrapper,
-    EnclosingWallHotkeyHandler,
-    install_enclosing_wall_hotkeys,
-)
 
 
 def is_empty_input_spacemouse(action_dict):
@@ -349,6 +344,12 @@ if __name__ == "__main__":
         help="Which robot(s) to use in the env",
     )
     parser.add_argument(
+        "--gripper_types",
+        type=str,
+        default="default",
+        help="Which gripper type to use in the env (for example: Robotiq85 or default)",
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default="single-arm-opposed",
@@ -415,6 +416,18 @@ if __name__ == "__main__":
     parser.add_argument("--generative_textures", action="store_true")
     args = parser.parse_args()
 
+    use_enclosing_wall_ui = bool(os.environ.get("DISPLAY"))
+    if use_enclosing_wall_ui:
+        from robocasa.wrappers.enclosing_wall_render_wrapper import (
+            EnclosingWallRenderWrapper,
+            EnclosingWallHotkeyHandler,
+            install_enclosing_wall_hotkeys,
+        )
+    else:
+        EnclosingWallRenderWrapper = None
+        EnclosingWallHotkeyHandler = None
+        install_enclosing_wall_hotkeys = None
+
     # Get controller config
     # controller_config = load_controller_config(default_controller=args.controller)
     controller_config = load_composite_controller_config(
@@ -434,6 +447,7 @@ if __name__ == "__main__":
     config = {
         "env_name": env_name,
         "robots": args.robots,
+        "gripper_types": args.gripper_types,
         "controller_configs": controller_config,
     }
 
@@ -500,7 +514,8 @@ if __name__ == "__main__":
     env = VisualizationWrapper(env)
 
     # Optional enclosing wall transparency toggle (Esc / [ / ]) for UI only
-    env = EnclosingWallRenderWrapper(env, alpha=0.15, enabled=False)
+    if EnclosingWallRenderWrapper is not None:
+        env = EnclosingWallRenderWrapper(env, alpha=0.15, enabled=False)
 
     # Grab reference to controller config and convert it to json-encoded string
     env_info = json.dumps(config)
@@ -520,7 +535,8 @@ if __name__ == "__main__":
         env = DataCollectionWrapper(env, all_eps_directory, use_env_xml_for_reset=True)
 
     # Esc toggles wall transparency; '[' / ']' force it OFF (also mjviewer camera keys).
-    install_enclosing_wall_hotkeys(env)
+    if install_enclosing_wall_hotkeys is not None:
+        install_enclosing_wall_hotkeys(env)
 
     # initialize device
     device = args.device

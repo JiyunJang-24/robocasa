@@ -116,6 +116,18 @@ mjkey.txt
 
 MUJOCO_LOG.TXT
 
+# generated dataset/eval artifacts (large; never meant to be committed)
+outputs/
+datasets/new_barx_full_shards/
+datasets/visual_robust_*_shards/
+datasets/*_shards/
+scratchpad/
+.eval_extra_site/
+claude.txt
+codex.txt
+*.hdf5
+videos/
+
 macros_private.py
 robocasa/models/assets/demonstrations_private
 datasets

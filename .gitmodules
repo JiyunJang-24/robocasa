@@ -1,0 +1,13 @@
+[submodule "mimicgen"]
+	path = mimicgen
+	url = https://github.com/robocasa-benchmark/mimicgen.git
+[submodule "robomimic"]
+	path = robomimic
+	url = https://github.com/ARISE-Initiative/robomimic.git
+[submodule "third_party/barx"]
+	path = third_party/barx
+	url = https://github.com/ajaysridhar0/barx.git
+[submodule "third_party/robosuite"]
+	path = third_party/robosuite
+	url = https://github.com/JiyunJang-24/robosuite.git
+	branch = robocasa-x-omron
