@@ -86,6 +86,9 @@ assert).
 | `generate_barx_cross_embodiment_dataset.py` | BARX task configs | wraps `generate_mimicgen_ur5e_dataset.py` for BARX's per-embodiment initial poses |
 | `atomic_same_scene_crossembodiment_demo.py` | one atomic episode | same-scene, same-objects reproduction on a different robot — the fidelity check to run *before* trusting a full cross-embodiment render |
 | `render_barx_normalized_hdf5.py` | atomic demos | BARX's normalized HDF5 layout (`obs/agentview_rgb`, `ee_states`, `gripper_states`, `aux_info` bboxes) |
+| `generate_visual_robust_with_segmentation.py` | **BARX's `atomic_new`** | the cross-embodiment dataset *plus* a robot segmentation mask per embodiment/camera, both produced in one pass — see §2d |
+| `add_robot_segmentation.py` | an existing single-embodiment atomic LeRobot dir | adds a mask track to that dataset post-hoc, by restoring each frame's recorded sim state — see §2d |
+| `recover_visual_robust_episode_mapping.py` | a published `visual_robust_new` combo | recovers which `atomic_new` episode each published episode came from (they are not the same index) — see §2d |
 
 `generate_visual_robust_cross_embodiment_x.py` is the one to reach for by
 default. For each source episode it:
@@ -144,6 +147,62 @@ import imageio.v2 as iio
 r = iio.get_reader("<existing dataset>/videos/chunk-000/<Tag>.<camera>/episode_000000.mp4")
 r.get_data(0).shape   # (height, width, 3) -- compare against your --camera-height/--width
 ```
+
+### 2d. Robot segmentation masks
+
+Two situations, and the difference between them decides whether a mask is
+obtainable at all.
+
+**Generating a new dataset — use
+`generate_visual_robust_with_segmentation.py`.** It wraps
+`generate_visual_robust_cross_embodiment_x.py` (same flags, same IK
+retargeting, same camera pinning) and captures a geom-id segmentation pass
+alongside every rendered frame, writing one extra video track per embodiment
+and camera:
+
+```bash
+third_party/barx/.venv/bin/python scripts/datagen/generate_visual_robust_with_segmentation.py \
+  --source-lerobot-dir third_party/barx/datasets/atomic_new/IIWAOmron/pretrain/PnPCounterToSink/lerobot \
+  --episodes 0 1 2 --robots PandaOmron UR5eOmron IIWAOmron \
+  --camera-names robot0_agentview_right robot0_eye_in_hand \
+  --camera-height 180 --camera-width 320 --hide-scope all_objects \
+  --output-dir outputs/datagen/whatever
+# -> videos/chunk-000/<Tag>.<camera>_segmentation/episode_*.mp4  (0/255 mask)
+```
+
+Generating both in one pass is the whole point: the mask describes the very
+render it was taken from, so no trajectory has to be reproduced and nothing
+can drift out of alignment.
+
+**Annotating a dataset that already exists — only possible when that
+dataset's per-frame sim state was recorded.** `add_robot_segmentation.py`
+does this for single-embodiment `atomic_new`-style data, where
+`extras/episode_*/states.npz` holds the full state of every frame: restore
+state `t`, render, and the mask is exact by construction.
+
+**It is NOT possible for the published `visual_robust_new`.** Its alternate
+embodiments were IK-derived at generation time and only their 8-dim fingertip
+pose was kept, and — the fatal part — the *source* robot's own frames cannot
+be recovered either: replaying the recorded actions open-loop drifts (measured:
+whole-image difference from the published video grows from ~4 to ~40 over an
+episode, leaving only ~40% of frames close enough to trust), and restoring the
+recorded states does not match either, because the published video itself
+drifted away from those states when it was generated. Its late frames
+correspond to no recorded state at all; the pixels are the only record, and a
+pose cannot be inverted out of them. Deriving the mask from the published
+pixels instead (background-plate subtraction) was measured at IoU 0.60-0.74
+against a known-correct mask — too coarse to ship, and shadow-suppression
+heuristics made it worse, not better. The workable answer is to regenerate
+with the script above rather than to annotate.
+
+One related trap, independent of masks: **published `visual_robust_new`
+episode N is not `atomic_new` episode N.** Exactly 48 of 108 differ in each
+combo. `recover_visual_robust_episode_mapping.py` recovers the mapping
+bit-exactly by matching the published `action` column against each candidate
+source episode's `raw_actions` (the writer copies it verbatim, so the correct
+source scores `max|diff| == 0.0` and wrong ones 2.0). Do not try to match on
+end-effector position: published `observation.state` is the *fingertip* while
+the model gives the *site*, and that offset rotates with orientation.
 
 ---
 
@@ -266,6 +325,30 @@ before running one you haven't used before.
 
 Ranked by how expensive they were to find, since each one produced output
 that looked fine until inspected directly.
+
+**Camera pinning must happen after the source replay, or every non-source
+embodiment renders from a shifted viewpoint.** `process_episode` rewrites
+`ep_meta["cam_configs"][<front camera>]` to the *world* pose captured off the
+source robot before building any other embodiment. The recorded pose is
+relative to the source's own base, and each Omron base sits at a different
+world position/height, so skipping this step leaves the source robot pixel
+perfect and silently moves the camera for everyone else. Any code that
+reimplements that per-embodiment loop (a segmentation pass, an analysis
+script) has to carry this over. Because the source stays correct, a spot check
+on the source robot cannot see the bug — check a *non-source* embodiment
+against the RGB it is supposed to describe.
+
+**Verifying a mask against a render of your own is not verification.**
+Comparing a geom-id mask to ground truth derived from the same fresh render
+is self-consistent and blind to the replay having produced a different
+picture than the dataset shipped. Compare against the published frame, per
+embodiment, and draw the mask *outline* on it — a translucent filled overlay
+on a white robot over a pale counter is unreadable. Whole-image mean pixel
+difference is also a poor judge of pose agreement for the same reason (a
+displaced white arm over a white counter barely moves it); it only separates
+gross failures, ~3-8 when faithful versus ~57 with an unpinned camera. And
+validate any guard you add with a negative control: deliberately re-break the
+thing and confirm it aborts. A guard only ever observed to pass is untested.
 
 **`--hide-scope` semantics are not what the names suggest.** `robot_only`
 does *not* mean "hide only the robot's surroundings, keep the kitchen" — it

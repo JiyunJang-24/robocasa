@@ -102,7 +102,7 @@ echo "[eval] checkpoint=${CHECKPOINT}"
 echo "[eval] output=${OUTPUT_DIR}"
 echo "[eval] task_text=${TASK_TEXT}"
 
-exec "${PYTHON}" "${ROOT}/eval_lerobot_checkpoint.py" \
+exec "${PYTHON}" "${SCRIPT_DIR}/eval_lerobot_checkpoint.py" \
   --checkpoint "${CHECKPOINT}" \
   --dataset "${DATASET}" \
   --lerobot-src "${LEROBOT_SRC}" \
