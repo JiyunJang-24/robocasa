@@ -277,6 +277,19 @@ def main():
         res_path = task_dir / f"ep_{ep_num:06d}.result.json"
         if res_path.exists():
             continue
+        # one lock per episode (atomic mkdir): a second worker never runs it concurrently
+        lock = task_dir / ".locks" / f"ep_{ep_num:06d}"
+        lock.parent.mkdir(exist_ok=True)
+        try:
+            lock.mkdir()
+        except FileExistsError:
+            print(f"[{args.target_robot}/{args.task}] ep {ep_num:06d} locked by another worker, skip", flush=True)
+            continue
+        if res_path.exists():  # finished between the check and the lock
+            lock.rmdir()
+            continue
+        if out_dir.exists():  # leftover of a killed run
+            shutil.rmtree(out_dir)
         t0 = time.time()
         result = dict(episode=ep_num, success=False, attempts=[])
         try:
@@ -314,7 +327,10 @@ def main():
             result["error"] = f"{type(e).__name__}: {e}"
             traceback.print_exc()
         result["seconds"] = round(time.time() - t0, 1)
-        json.dump(result, open(res_path, "w"), indent=1)
+        tmp = res_path.with_suffix(".tmp")
+        json.dump(result, open(tmp, "w"), indent=1)
+        os.replace(tmp, res_path)
+        lock.rmdir()
         print(f"[{args.target_robot}/{args.task}] ep {ep_num:06d} success={result['success']} "
               f"attempts={len(result['attempts'])} {result['seconds']}s", flush=True)
 

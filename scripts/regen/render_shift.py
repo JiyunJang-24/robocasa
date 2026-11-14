@@ -114,12 +114,20 @@ def cmd_render(a):
         done_flag = a.out / ".render" / f"episode_{ep:06d}.json"
         if done_flag.exists():
             continue
+        lock = a.out / ".locks" / f"episode_{ep:06d}"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            lock.mkdir()
+        except FileExistsError:
+            print(f"[shift {a.variant}] {a.robot} ep {ep:06d} locked by another worker, skip", flush=True)
+            continue
         frames, applied = render_episode(env, a.canonical, ep, spec)
         for c in CAMERAS:
             # unshifted cams are re-rendered too (keeps the encoder identical across cams)
             encode_mp4(video_path(a.out, ep, c), to_u8(frames[c]))
         done_flag.parent.mkdir(parents=True, exist_ok=True)
         json.dump(dict(episode=ep, frames=int(len(frames[CAMERAS[0]])), applied=applied), open(done_flag, "w"))
+        lock.rmdir()
         print(f"[shift {a.variant}] {a.robot} ep {ep:06d} done", flush=True)
 
 
@@ -189,6 +197,7 @@ def cmd_finalize(a):
                                 variant=a.variant, robot=a.robot, git_commit=commit,
                                 shifts_file="scripts/regen/camera_shifts_v2.json", host=os.uname().nodename)) + "\n")
     shutil.rmtree(a.out / ".render")
+    shutil.rmtree(a.out / ".locks", ignore_errors=True)
     with open(a.out / "MANIFEST.md5", "w") as f:
         for p in sorted(a.out.rglob("*")):
             if p.is_file() and p.name != "MANIFEST.md5":

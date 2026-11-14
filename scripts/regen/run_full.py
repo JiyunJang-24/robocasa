@@ -41,7 +41,7 @@ def parse_args():
     p.add_argument("--reuse-dir", type=Path, default=None)
     p.add_argument("--first-variants", nargs="*", default=["combined_shift_v2"])
     p.add_argument("--later-variants", nargs="*", default=["wrist_shift_v2", "front_shift_v2"])
-    p.add_argument("--procs", type=int, default=20)
+    p.add_argument("--procs", type=int, default=12, help="total concurrent sim/render processes (keep <= 12)")
     p.add_argument("--max-load", type=float, default=30.0, help="hold launches while 1-min loadavg exceeds this")
     p.add_argument("--gpus", type=int, nargs="+", default=[0, 1, 2, 3])
     p.add_argument("--regen-chunk", type=int, default=2)
@@ -63,6 +63,34 @@ class Orchestrator:
         self.eps = {t: task_episodes(t) for t in a.tasks}
         self.pairs = [(r, t) for t, r in itertools.product(a.tasks, a.robots)]  # task-major
         self.gpu = itertools.cycle(a.gpus)
+        self.audit()
+
+    def audit(self):
+        """Startup only (no workers alive): drop stale locks, and treat the result.json /
+        ep folder pair as the single source of truth -- an episode whose pair disagrees
+        (or that errored) is deleted and re-run, and every merged/rendered output of its
+        (robot, task) is invalidated, since re-merging renumbers episodes."""
+        busy = subprocess.run(["pgrep", "-f", "regen_replay.py|render_shift.py"], capture_output=True, text=True).stdout
+        assert not busy.strip(), f"workers still alive, kill them first: {busy.split()}"
+        for lk in itertools.chain(self.a.work_dir.glob("*/*/.locks"), self.a.out_root.glob("*/*/*/lerobot/.locks")):
+            shutil.rmtree(lk)
+        for r, t in self.pairs:
+            bad = []
+            for res in (self.a.work_dir / r / t).glob("ep_*.result.json"):
+                ep_dir = res.with_name(res.name.replace(".result.json", ""))
+                d = json.load(open(res))
+                if "error" in d or bool(d.get("success")) != ep_dir.is_dir():
+                    bad.append(ep_dir.name)
+                    res.unlink()
+                    shutil.rmtree(ep_dir, ignore_errors=True)
+            for tmp in (self.a.work_dir / r / t).glob("ep_*.tmp"):
+                shutil.rmtree(tmp)
+            if bad:
+                print(f"[audit] {r}/{t}: re-run {sorted(bad)}; invalidating merge + shifted outputs", flush=True)
+                self.mark("merge", r, t).unlink(missing_ok=True)
+                for v in self.a.first_variants + self.a.later_variants:
+                    self.mark("final", v, r, t).unlink(missing_ok=True)
+                    shutil.rmtree(self.shifted(v, r, t), ignore_errors=True)
 
     # ---- paths / markers
     def canon(self, r, t):
@@ -103,12 +131,19 @@ class Orchestrator:
             return []
         n = self.n_canon(r, t)
         todo = [e for e in range(n) if not self.rendered(v, r, t, e)]
+        if not todo and self.busy("render", v, r, t):
+            return [None]  # last chunks still rendering
+        todo = [e for e in todo if e not in self.busy("render", v, r, t)]
         base = [sys.executable, str(HERE / "render_shift.py")]
         args = ["--canonical", str(self.canon(r, t)), "--out", str(self.shifted(v, r, t)), "--robot", r, "--variant", v]
         if not todo:
             return [(("final", v, r, t), base + ["finalize", *args], self.mark("final", v, r, t))]
         return [(("render", v, r, t, c[0]), base + ["render", *args, "--episodes", *map(str, c)], None)
                 for c in (todo[i:i + self.a.render_chunk] for i in range(0, len(todo), self.a.render_chunk))]
+
+    def busy(self, kind, *k):
+        """Episodes of in-flight jobs, so a re-chunked todo list never relaunches them."""
+        return {e for key, (*_, eps) in self.running.items() if key[0] == kind and key[1:-1] == k for e in eps}
 
     def ready_jobs(self):
         finals, merges, first, regen, later = [], [], [], [], []
@@ -117,10 +152,11 @@ class Orchestrator:
             if not self.done("merge", r, t):
                 all_first_done = False
                 todo = [e for e in self.eps[t] if not self.regen_done(r, t, e) and not self.reuse(r, t, e)]
-                if not todo:
+                if not todo and not self.busy("regen", r, t):
                     merges.append((("merge", r, t), [sys.executable, str(HERE / "merge_all.py"), "--work-dir",
                                    str(self.a.work_dir), "--out-root", str(self.a.out_root / "final_v3"),
                                    "--robots", r, "--tasks", t], self.mark("merge", r, t)))
+                todo = [e for e in todo if e not in self.busy("regen", r, t)]
                 for i in range(0, len(todo), self.a.regen_chunk):
                     c = todo[i:i + self.a.regen_chunk]
                     regen.append((("regen", r, t, c[0]), [sys.executable, str(HERE / "regen_replay.py"), "--task", t,
@@ -130,13 +166,13 @@ class Orchestrator:
             for v in self.a.first_variants:
                 js = self.variant_jobs(v, r, t)
                 all_first_done &= not js
-                (finals if js and js[0][0][0] == "final" else first).extend(js)
+                (finals if js and js[0] and js[0][0][0] == "final" else first).extend(js)
         if all_first_done:
             for r, t in self.pairs:
                 for v in self.a.later_variants:
                     js = self.variant_jobs(v, r, t)
-                    (finals if js and js[0][0][0] == "final" else later).extend(js)
-        return finals + merges + first + regen + later
+                    (finals if js and js[0] and js[0][0][0] == "final" else later).extend(js)
+        return [j for j in finals + merges + first + regen + later if j is not None]
 
     # ---- loop
     def launch(self, key, cmd, marker):
@@ -146,10 +182,11 @@ class Orchestrator:
                    OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1")
         fh = open(self.logs / ("_".join(map(str, key)) + ".log"), "a")
         proc = subprocess.Popen(cmd, env=env, stdout=fh, stderr=subprocess.STDOUT, cwd=HERE)
-        self.running[key] = (proc, fh, time.time(), marker)
+        eps = [int(x) for x in cmd[cmd.index("--episodes") + 1:]] if "--episodes" in cmd else []
+        self.running[key] = (proc, fh, time.time(), marker, eps)
 
     def reap(self):
-        for key, (proc, fh, t0, marker) in list(self.running.items()):
+        for key, (proc, fh, t0, marker, _) in list(self.running.items()):
             if proc.poll() is None:
                 continue
             fh.close()
