@@ -181,7 +181,9 @@ def encode_mp4(path, frames, fps=FPS):
 def write_bundle(out_dir, ep_num, src_dir, att, obs_list, rewards, ep_meta, modality,
                  gidx, base_backoff, finger_backoff, args, source_len):
     import pandas as pd
-    from lerobot.datasets.compute_stats import compute_episode_stats
+    import lerobot.datasets.compute_stats as CS
+
+    CS.load_image_as_numpy = lambda x, dtype=None, channel_first=True: x  # frames are in memory (CHW)
 
     tmp = out_dir.with_name(out_dir.name + ".tmp")
     if tmp.exists():
@@ -221,9 +223,9 @@ def write_bundle(out_dir, ep_num, src_dir, att, obs_list, rewards, ep_meta, moda
     feats = {k: {"dtype": "float64", "shape": (v.shape[1],)} for k, v in ep_data.items()}
     for cam in CAMERAS:
         key = f"observation.images.{cam}"
-        ep_data[key] = obs[f"{cam}_image"].transpose(0, 3, 1, 2)
+        ep_data[key] = list(obs[f"{cam}_image"].transpose(0, 3, 1, 2))
         feats[key] = {"dtype": "video", "shape": (args.img, args.img, 3)}
-    stats = compute_episode_stats(ep_data, feats)
+    stats = CS.compute_episode_stats(ep_data, feats)
     stats = {k: {s: np.asarray(v).tolist() for s, v in d.items()} for k, d in stats.items()}
     json.dump(stats, open(tmp / "stats.json", "w"))
     # extras: target-robot replay payload
