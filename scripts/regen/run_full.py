@@ -132,9 +132,10 @@ class Orchestrator:
             return []
         n = self.n_canon(r, t)
         todo = [e for e in range(n) if not self.rendered(v, r, t, e)]
-        if not todo and self.busy("render", v, r, t):
-            return [None]  # last chunks still rendering
-        todo = [e for e in todo if e not in self.busy("render", v, r, t)]
+        free = [e for e in todo if e not in self.busy("render", v, r, t)]
+        if todo and not free:
+            return [None]  # remaining episodes are all still rendering
+        todo = free
         base = [sys.executable, str(HERE / "render_shift.py")]
         args = ["--canonical", str(self.canon(r, t)), "--out", str(self.shifted(v, r, t)), "--robot", r, "--variant", v]
         if not todo:
