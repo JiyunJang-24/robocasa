@@ -16,6 +16,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -32,6 +34,8 @@ def merge_task(work_task: Path, out: Path, robot: str, task: str):
         return 0
     src = RC.resolve_source_dir(task)
     src_info = json.load(open(src / "meta" / "info.json"))
+    # write parquet with the source's exact arrow schema (fixed_size_list + HF metadata)
+    src_schema = pq.read_schema(next(src.glob("data/chunk-*/episode_*.parquet")))
     if out.exists():
         shutil.rmtree(out)
     (out / "meta").mkdir(parents=True)
@@ -59,7 +63,8 @@ def merge_task(work_task: Path, out: Path, robot: str, task: str):
         chunk = new_i // 1000
         dpath = out / "data" / f"chunk-{chunk:03d}" / f"episode_{new_i:06d}.parquet"
         dpath.parent.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(dpath, index=False)
+        table = pa.Table.from_pandas(df, preserve_index=False).select(src_schema.names)
+        pq.write_table(table.cast(src_schema), dpath)
         for cam in CAMERAS:
             vp = out / "videos" / f"chunk-{chunk:03d}" / f"observation.images.{cam}" / f"episode_{new_i:06d}.mp4"
             vp.parent.mkdir(parents=True, exist_ok=True)
