@@ -229,7 +229,11 @@ class Orchestrator:
             if v[5] in load:
                 load[v[5]] += 1
         g = min(load, key=load.get)
-        return g if load[g] < self.a.per_gpu else None
+        try:  # <work-dir>/_state/per_gpu overrides --per-gpu live
+            cap = int((self.state / "per_gpu").read_text())
+        except (OSError, ValueError):
+            cap = self.a.per_gpu
+        return g if load[g] < cap else None
 
     def procs(self):
         """Concurrency cap; <work-dir>/_state/procs (one integer) overrides --procs live."""
