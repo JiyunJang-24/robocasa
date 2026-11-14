@@ -70,8 +70,9 @@ class Orchestrator:
         ep folder pair as the single source of truth -- an episode whose pair disagrees
         (or that errored) is deleted and re-run, and every merged/rendered output of its
         (robot, task) is invalidated, since re-merging renumbers episodes."""
-        busy = subprocess.run(["pgrep", "-f", "regen_replay.py|render_shift.py"], capture_output=True, text=True).stdout
-        assert not busy.strip(), f"workers still alive, kill them first: {busy.split()}"
+        busy = [p.pid for p in psutil.process_iter(["cmdline"])
+                if any(Path(x).name in ("regen_replay.py", "render_shift.py") for x in (p.info["cmdline"] or [])[1:2])]
+        assert not busy, f"workers still alive, kill them first: {busy}"
         for lk in itertools.chain(self.a.work_dir.glob("*/*/.locks"), self.a.out_root.glob("*/*/*/lerobot/.locks")):
             shutil.rmtree(lk)
         for r, t in self.pairs:
