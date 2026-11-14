@@ -44,11 +44,25 @@ def parse_args():
     p.add_argument("--procs", type=int, default=12, help="total concurrent sim/render processes (keep <= 12)")
     p.add_argument("--max-load", type=float, default=30.0, help="hold launches while 1-min loadavg exceeds this")
     p.add_argument("--gpus", type=int, nargs="+", default=[0, 1, 2, 3])
+    p.add_argument("--per-gpu", type=int, default=5, help="max concurrent sim/render procs per GPU")
     p.add_argument("--regen-chunk", type=int, default=2)
     p.add_argument("--render-chunk", type=int, default=10)
     p.add_argument("--min-free-gb", type=float, default=60.0)
     p.add_argument("--max-retries", type=int, default=2)
     return p.parse_args()
+
+
+class Adopted:
+    """Popen-like handle on a worker this orchestrator did not start."""
+
+    def __init__(self, p):
+        self.p, self.returncode = p, None
+
+    def poll(self):
+        if self.p.is_running() and self.p.status() != psutil.STATUS_ZOMBIE:
+            return None
+        self.returncode = 0  # exit code unknown; its episodes' result files are the truth
+        return 0
 
 
 class Orchestrator:
@@ -62,8 +76,40 @@ class Orchestrator:
         self.fails = {}
         self.eps = {t: task_episodes(t) for t in a.tasks}
         self.pairs = [(r, t) for t, r in itertools.product(a.tasks, a.robots)]  # task-major
-        self.gpu = itertools.cycle(a.gpus)
-        self.audit()
+        workers = self.find_workers()
+        if workers:
+            self.adopt(workers)
+        else:
+            self.audit()
+
+    @staticmethod
+    def find_workers():
+        out = []
+        for p in psutil.process_iter(["cmdline"]):
+            cmd = p.info["cmdline"] or []
+            if len(cmd) > 1 and Path(cmd[1]).name in ("regen_replay.py", "render_shift.py", "merge_all.py"):
+                out.append((p, cmd))
+        return out
+
+    def adopt(self, workers):
+        """Restart without killing running episodes: take over the workers of a previous
+        orchestrator (their episode locks keep them exclusive). Stale-lock cleanup and the
+        result/folder audit need a quiet tree, so they are skipped on this path."""
+        for p, cmd in workers:
+            name = Path(cmd[1]).name
+            assert name != "merge_all.py" and "finalize" not in cmd, f"wait for merge/finalize to end: {cmd}"
+            arg = lambda k: cmd[cmd.index(k) + 1]
+            eps = [int(x) for x in cmd[cmd.index("--episodes") + 1:]]
+            if name == "regen_replay.py":
+                key = ("regen", arg("--target-robot"), arg("--task"), eps[0])
+            else:
+                key = ("render", arg("--variant"), arg("--robot"), Path(arg("--canonical")).parent.name, eps[0])
+            try:
+                gpu = int(p.environ().get("CUDA_VISIBLE_DEVICES", "-1"))
+            except psutil.Error:
+                gpu = -1
+            self.running[key] = (Adopted(p), open(os.devnull, "w"), time.time(), None, eps, gpu)
+        print(f"[full] adopted {len(workers)} running workers", flush=True)
 
     def audit(self):
         """Startup only (no workers alive): drop stale locks, and treat the result.json /
@@ -145,7 +191,7 @@ class Orchestrator:
 
     def busy(self, kind, *k):
         """Episodes of in-flight jobs, so a re-chunked todo list never relaunches them."""
-        return {e for key, (*_, eps) in self.running.items() if key[0] == kind and key[1:-1] == k for e in eps}
+        return {e for key, (*_, eps, _g) in self.running.items() if key[0] == kind and key[1:-1] == k for e in eps}
 
     def ready_jobs(self):
         finals, merges, first, regen, later = [], [], [], [], []
@@ -177,18 +223,32 @@ class Orchestrator:
         return [j for j in finals + merges + first + regen + later if j is not None]
 
     # ---- loop
-    def launch(self, key, cmd, marker):
-        gpu = next(self.gpu)
+    def free_gpu(self):
+        load = {g: 0 for g in self.a.gpus}
+        for v in self.running.values():
+            if v[5] in load:
+                load[v[5]] += 1
+        g = min(load, key=load.get)
+        return g if load[g] < self.a.per_gpu else None
+
+    def procs(self):
+        """Concurrency cap; <work-dir>/_state/procs (one integer) overrides --procs live."""
+        try:
+            return int((self.state / "procs").read_text())
+        except (OSError, ValueError):
+            return self.a.procs
+
+    def launch(self, key, cmd, marker, gpu):
         env = dict(os.environ, MUJOCO_GL="egl", PYOPENGL_PLATFORM="egl",
                    MUJOCO_EGL_DEVICE_ID=str(gpu), CUDA_VISIBLE_DEVICES=str(gpu),
                    OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1")
         fh = open(self.logs / ("_".join(map(str, key)) + ".log"), "a")
         proc = subprocess.Popen(cmd, env=env, stdout=fh, stderr=subprocess.STDOUT, cwd=HERE)
         eps = [int(x) for x in cmd[cmd.index("--episodes") + 1:]] if "--episodes" in cmd else []
-        self.running[key] = (proc, fh, time.time(), marker, eps)
+        self.running[key] = (proc, fh, time.time(), marker, eps, gpu)
 
     def reap(self):
-        for key, (proc, fh, t0, marker, _) in list(self.running.items()):
+        for key, (proc, fh, t0, marker, *_) in list(self.running.items()):
             if proc.poll() is None:
                 continue
             fh.close()
@@ -209,11 +269,14 @@ class Orchestrator:
             if not jobs and not self.running:
                 break
             for key, cmd, marker in jobs:
-                if len(self.running) >= self.a.procs:
+                if len(self.running) >= self.procs():
+                    break
+                gpu = self.free_gpu()
+                if gpu is None:
                     break
                 if psutil.virtual_memory().available / 1e9 < self.a.min_free_gb or os.getloadavg()[0] > self.a.max_load:
                     break
-                self.launch(key, cmd, marker)
+                self.launch(key, cmd, marker, gpu)
                 time.sleep(2)  # stagger env construction
             time.sleep(10)
         print(f"[full] all done in {time.time() - t_start:.0f}s; failed keys: "
