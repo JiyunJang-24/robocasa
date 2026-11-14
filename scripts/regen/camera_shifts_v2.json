@@ -15,7 +15,7 @@
       },
       "wrist": {"robot0_eye_in_hand": {"yaw": 0.0, "pitch": 10.0, "roll": 0.0, "back_m": 0.0}}
     },
-    "Kinova3OmronM": {
+    "Kinova3Omron": {
       "front": {
         "robot0_agentview_left": {"yaw": 0.0, "pitch": -15.0, "roll": 0.0, "back_m": 0.10},
         "robot0_agentview_right": {"yaw": 0.0, "pitch": -15.0, "roll": 0.0, "back_m": 0.10}

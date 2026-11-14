@@ -88,9 +88,10 @@ import robosuite.robots as _rs_robots  # noqa: E402
 from robosuite.robots.wheeled_robot import WheeledRobot  # noqa: E402
 
 
-class Kinova3OmronM(Kinova3):
-    """PROVISIONAL Kinova3 on the Omron mobile base (with torso lift), modelled on
-    IIWAOmron. lanai's definition was lost; verify against a keti Kinova3 model.xml."""
+class Kinova3Omron(Kinova3):
+    """Kinova3 on the Omron mobile base. Body/joint/geom/actuator tree verified
+    against the keti (lanai-made) Kinova3Omron model.xml; torso starts at 0.0
+    like UR5eOmron (keti regen_info torso_offset_m 0.0), IIWAOmron stays 0.2."""
 
     @property
     def default_base(self):
@@ -106,7 +107,7 @@ class Kinova3OmronM(Kinova3):
 
     @property
     def init_torso_qpos(self):
-        return np.array([0.2])
+        return np.array([0.0])
 
     @property
     def base_xpos_offset(self):
@@ -117,14 +118,14 @@ class Kinova3OmronM(Kinova3):
         }
 
 
-_rs_robots.ROBOT_CLASS_MAPPING.setdefault("Kinova3OmronM", WheeledRobot)
+_rs_robots.ROBOT_CLASS_MAPPING.setdefault("Kinova3Omron", WheeledRobot)
 
 
 # target robot -> gripper used for the regen
 ROBOT_GRIPPERS = {
     "UR5eOmron": "Robotiq85StockGripper",
     "IIWAOmron": "Robotiq140Gripper",
-    "Kinova3OmronM": "Robotiq85StockGripper",
+    "Kinova3Omron": "Robotiq85StockGripper",
 }
 
 

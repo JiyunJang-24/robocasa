@@ -1,7 +1,7 @@
 # RoboCasa human-demo cross-embodiment regeneration
 
 Replays RoboCasa v1.0 atomic **human** demos (LeRobot + `extras/`) on other robots
-(UR5eOmron / IIWAOmron / Kinova3OmronM) by OSC tracking of the source EEF trajectory,
+(UR5eOmron / IIWAOmron / Kinova3Omron) by OSC tracking of the source EEF trajectory,
 and writes LeRobot v2.1 datasets (3 cams, 256x256, 20 fps).
 
 Spec:
