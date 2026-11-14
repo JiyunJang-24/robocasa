@@ -1,0 +1,38 @@
+{
+  "version": "v2",
+  "convention": {
+    "frame": "each camera's own MuJoCo frame (x right, y up, looking along -z); applied to the camera's mount pose relative to its parent body (agentview: mobilebase0_support, eye_in_hand: robot0_right_hand)",
+    "rotation": "R_new = R_mount @ Ry(yaw) @ Rx(pitch) @ Rz(roll); positive yaw = turn left, positive pitch = tilt up, positive roll = CCW about the view axis (as seen from behind the camera)",
+    "back_m": "translation along the camera's own +z (away from the scene)",
+    "unchanged": "fovy, resolution (256x256), no 2D image ops, no recentering",
+    "status": "PROVISIONAL until the keti parity check passes (lanai sign conventions)"
+  },
+  "robots": {
+    "IIWAOmron": {
+      "front": {
+        "robot0_agentview_left": {"yaw": -20.0, "pitch": 0.0, "roll": 0.0, "back_m": 0.10},
+        "robot0_agentview_right": {"yaw": 20.0, "pitch": 0.0, "roll": 0.0, "back_m": 0.10}
+      },
+      "wrist": {"robot0_eye_in_hand": {"yaw": 0.0, "pitch": 10.0, "roll": 0.0, "back_m": 0.0}}
+    },
+    "Kinova3OmronM": {
+      "front": {
+        "robot0_agentview_left": {"yaw": 0.0, "pitch": -15.0, "roll": 0.0, "back_m": 0.10},
+        "robot0_agentview_right": {"yaw": 0.0, "pitch": -15.0, "roll": 0.0, "back_m": 0.10}
+      },
+      "wrist": {"robot0_eye_in_hand": {"yaw": 15.0, "pitch": 0.0, "roll": 0.0, "back_m": 0.0}}
+    },
+    "UR5eOmron": {
+      "front": {
+        "robot0_agentview_left": {"yaw": -15.0, "pitch": -12.5, "roll": 15.0, "back_m": 0.0},
+        "robot0_agentview_right": {"yaw": 15.0, "pitch": -12.5, "roll": -15.0, "back_m": 0.0}
+      },
+      "wrist": {"robot0_eye_in_hand": {"yaw": -17.68, "pitch": -17.68, "roll": 0.0, "back_m": 0.0}}
+    }
+  },
+  "variants": {
+    "combined_shift_v2": ["front", "wrist"],
+    "wrist_shift_v2": ["wrist"],
+    "front_shift_v2": ["front"]
+  }
+}
