@@ -83,6 +83,43 @@ class Robotiq85StockGripper(GripperModel):
         return 1
 
 
+from robosuite.models.robots.manipulators.kinova3_robot import Kinova3  # noqa: E402
+import robosuite.robots as _rs_robots  # noqa: E402
+from robosuite.robots.wheeled_robot import WheeledRobot  # noqa: E402
+
+
+class Kinova3OmronM(Kinova3):
+    """PROVISIONAL Kinova3 on the Omron mobile base (with torso lift), modelled on
+    IIWAOmron. lanai's definition was lost; verify against a keti Kinova3 model.xml."""
+
+    @property
+    def default_base(self):
+        return "OmronMobileBase"
+
+    @property
+    def default_arms(self):
+        return {"right": "Kinova3"}
+
+    @property
+    def default_gripper(self):
+        return {"right": "Robotiq85StockGripper"}
+
+    @property
+    def init_torso_qpos(self):
+        return np.array([0.2])
+
+    @property
+    def base_xpos_offset(self):
+        return {
+            "bins": (-0.6, -0.1, 0),
+            "empty": (-0.6, 0, 0),
+            "table": lambda table_length: (-0.16 - table_length / 2, 0, 0),
+        }
+
+
+_rs_robots.ROBOT_CLASS_MAPPING.setdefault("Kinova3OmronM", WheeledRobot)
+
+
 # target robot -> gripper used for the regen
 ROBOT_GRIPPERS = {
     "UR5eOmron": "Robotiq85StockGripper",
